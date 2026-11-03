@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>转到这里 · 角度还原挑战</title>
+<style>
+:root{--bg:#f3ede2;--ink:#221f1b;--muted:#7d756a;--line:#ddd3c3;--accent:#c4553b;--ok:#3d8a4e;--card:#fffaf1}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;-webkit-user-select:none;user-select:none;overflow:hidden;-webkit-tap-highlight-color:transparent}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;padding:calc(env(safe-area-inset-top) + 18px) 20px calc(env(safe-area-inset-bottom) + 18px);overflow-y:auto}
+.screen.on{display:flex}
+h1{font-size:34px;letter-spacing:2px;margin-top:4vh}
+.sub{color:var(--muted);font-size:15px;margin-top:8px;text-align:center;line-height:1.6}
+.steps{margin:26px 0 8px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:10px}
+.step{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.5}
+.step b{flex:none;width:24px;height:24px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:13px}
+.btns{display:flex;flex-direction:column;gap:12px;width:100%;max-width:380px;margin-top:22px}
+button{font:inherit;border:0;border-radius:14px;padding:15px 18px;font-size:17px;font-weight:600;cursor:pointer;color:#fff;background:var(--ink);transition:transform .08s}
+button:active{transform:scale(.97)}
+button.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--ink)}
+button.small{padding:8px 12px;font-size:13px;font-weight:500;border-radius:10px}
+.note{font-size:12px;color:var(--muted);margin-top:16px;text-align:center;line-height:1.6;max-width:380px}
+#hero{margin-top:20px;border-radius:18px;box-shadow:0 6px 24px rgba(60,40,20,.12)}
+/* game */
+.topbar{width:100%;max-width:520px;display:flex;justify-content:space-between;align-items:center;font-size:15px}
+.topbar .round{font-weight:700}
+.topbar .time{font-variant-numeric:tabular-nums;font-weight:600}
+.targetRow{width:100%;max-width:520px;display:flex;align-items:center;gap:14px;margin-top:12px}
+.targetBox{position:relative;flex:none}
+.targetBox canvas{display:block;border-radius:12px;border:3px solid var(--accent);background:#fff}
+.targetBox span{position:absolute;left:6px;top:6px;background:var(--accent);color:#fff;font-size:11px;padding:2px 7px;border-radius:6px;font-weight:600}
+.hint{flex:1;font-size:15px;line-height:1.5}
+.hint .big{font-size:22px;font-weight:700;display:block;margin-bottom:2px;transition:color .15s}
+.meter{width:100%;height:8px;border-radius:4px;background:var(--line);margin-top:8px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--accent);border-radius:4px;transition:width .1s,background .15s}
+.stage{position:relative;margin-top:14px}
+#main{display:block;border-radius:18px;border:4px solid var(--line);background:#fff;transition:border-color .15s;touch-action:none}
+.hold{position:absolute;left:12px;right:12px;bottom:12px;height:10px;border-radius:5px;background:rgba(255,255,255,.6);overflow:hidden;opacity:0;transition:opacity .15s}
+.hold i{display:block;height:100%;width:0;background:var(--ok)}
+.flash{position:absolute;inset:0;display:grid;place-items:center;font-size:56px;font-weight:800;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .2s}
+.controls{width:100%;max-width:520px;margin-top:12px;display:flex;flex-direction:column;gap:10px;align-items:center}
+.sliderWrap{width:100%;display:none;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.sliderWrap.on{display:flex}
+input[type=range]{flex:1;accent-color:var(--ink);height:32px}
+.ctrlBtns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+/* end */
+.score{font-size:64px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:6vh;letter-spacing:1px}
+.rank{font-size:22px;font-weight:700;color:var(--accent);margin-top:4px}
+.best{color:var(--muted);margin-top:8px;font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:22px;max-width:380px}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:13px;font-variant-numeric:tabular-nums}
+.chip em{font-style:normal;color:var(--muted);margin-right:4px}
+.loading{margin-top:30vh;font-size:16px;color:var(--muted);text-align:center;line-height:1.8}
+.bar{width:220px;height:6px;background:var(--line);border-radius:3px;margin:12px auto 0;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--ink)}
+.err{color:var(--accent);font-size:14px;margin-top:10px;text-align:center;min-height:20px}
+</style>
+</head>
+<body>
+
+<!-- 首页 -->
+<section class="screen on" id="sStart">
+  <h1>转到这里</h1>
+  <div class="sub">角度还原挑战 · 倾斜手机，转到目标视角</div>
+  <canvas id="hero" width="260" height="190"></canvas>
+  <div class="steps">
+    <div class="step"><b>1</b><div>左上角会给一张<strong>目标小图</strong>，是场景从某个角度看的样子。</div></div>
+    <div class="step"><b>2</b><div>左右倾斜手机转动场景，<strong>对准目标角度</strong>，稳住 0.8 秒过关。</div></div>
+    <div class="step"><b>3</b><div>一共 10 关，越往后容差越小，比谁总用时最短。</div></div>
+  </div>
+  <div class="btns">
+    <button id="btnDemo">开始（小岛场景）</button>
+    <button class="ghost" id="btnUpload">上传自己的 360° 视频</button>
+    <input type="file" id="file" accept="video/*" hidden>
+  </div>
+  <div class="err" id="startErr"></div>
+  <div class="note">没有倾斜感应（电脑或不支持的浏览器）时，会自动改成拖动画面或滑条来玩。<br>上传的视频最好是一圈完整环绕，比如用 MiniMax H3 + ORB360 LoRA 生成的那种。</div>
+</section>
+
+<!-- 提取帧 -->
+<section class="screen" id="sLoad">
+  <div class="loading"><div id="loadText">正在读取视频…</div><div class="bar"><i id="loadBar"></i></div></div>
+</section>
+
+<!-- 视频准备好 -->
+<section class="screen" id="sReady">
+  <h1 style="font-size:28px">视频准备好了</h1>
+  <div class="sub" id="readyInfo"></div>
+  <canvas id="readyPrev" style="margin-top:20px;border-radius:16px;max-width:100%"></canvas>
+  <div class="btns">
+    <button id="btnGoVideo">开始挑战</button>
+    <button class="ghost" id="btnBack1">返回</button>
+  </div>
+</section>
+
+<!-- 游戏 -->
+<section class="screen" id="sGame">
+  <div class="topbar"><span class="round" id="roundTxt">第 1 / 10 关</span><span class="time" id="timeTxt">0.0s</span></div>
+  <div class="targetRow">
+    <div class="targetBox"><canvas id="target"></canvas><span>目标</span></div>
+    <div class="hint"><span class="big" id="hintBig">准备</span><span id="hintSmall">左右倾斜手机</span><div class="meter"><i id="meter"></i></div></div>
+  </div>
+  <div class="stage">
+    <canvas id="main"></canvas>
+    <div class="hold" id="holdWrap"><i id="hold"></i></div>
+    <div class="flash" id="flash">✓</div>
+  </div>
+  <div class="controls">
+    <div class="sliderWrap" id="sliderWrap"><span>左</span><input type="range" id="slider" min="0" max="71" value="36"><span>右</span></div>
+    <div class="ctrlBtns">
+      <button class="small ghost" id="btnCal">校准（当前姿势设为正中）</button>
+      <button class="small ghost" id="btnMode">改用滑条</button>
+      <button class="small ghost" id="btnQuit">退出</button>
+    </div>
+  </div>
+</section>
+
+<!-- 结算 -->
+<section class="screen" id="sEnd">
+  <div class="score" id="scoreTxt">0.0s</div>
+  <div class="rank" id="rankTxt"></div>
+  <div class="best" id="bestTxt"></div>
+  <div class="chips" id="chips"></div>
+  <div class="btns">
+    <button id="btnAgain">再来一局</button>
+    <button class="ghost" id="btnHome">回到首页</button>
+  </div>
+</section>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const ROUNDS = 10;
+const TOL = [20,20,20,15,15,15,15,10,10,10];   // 每关容差（环绕角度，度）
+const RANGE = 90;                              // 手机左右倾斜总范围（度）对应整圈
+const HOLD = 800;                              // 需要稳住的毫秒数
+const HINT_ROUNDS = 3;                         // 前几关给方向提示
+
+const S = {
+  mode:'demo', N:72, frames:null, aspect:1,
+  base:null, raw:0, smooth:0, hasSensor:false, sensorOn:false,
+  useSlider:false, sliderIdx:36,
+  round:0, target:0, prevTarget:-1, holdStart:0,
+  gameStart:0, roundStart:0, times:[], running:false,
+  lastDrawn:-1, raf:0
+};
+
+/* ---------------- 屏幕切换 ---------------- */
+function show(id){ document.querySelectorAll('.screen').forEach(e=>e.classList.toggle('on', e.id===id)); }
+
+/* ---------------- 演示场景：程序绘制的小岛 ---------------- */
+const MESH = buildScene();
+function buildScene(){
+  const faces = [];
+  const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+  const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+  const norm=v=>{const l=Math.hypot(...v)||1;return [v[0]/l,v[1]/l,v[2]/l]};
+  function face(pts,color,center,two=false){
+    let n = norm(cross(sub(pts[1],pts[0]),sub(pts[2],pts[0])));
+    const c = pts.reduce((s,p)=>[s[0]+p[0]/pts.length,s[1]+p[1]/pts.length,s[2]+p[2]/pts.length],[0,0,0]);
+    if(center){ const d=sub(c,center); if(n[0]*d[0]+n[1]*d[1]+n[2]*d[2]<0) n=[-n[0],-n[1],-n[2]]; }
+    faces.push({pts,color,n,two});
+  }
+  function box(x,z,w,d,h,y0,col,top){
+    const x0=x-w/2,x1=x+w/2,z0=z-d/2,z1=z+d/2,y1=y0+h, c=[x,y0+h/2,z];
+    face([[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]],col,c);
+    face([[x1,y0,z0],[x0,y0,z0],[x0,y1,z0],[x1,y1,z0]],col,c);
+    face([[x1,y0,z1],[x1,y0,z0],[x1,y1,z0],[x1,y1,z1]],col,c);
+    face([[x0,y0,z0],[x0,y0,z1],[x0,y1,z1],[x0,y1,z0]],col,c);
+    face([[x0,y1,z1],[x1,y1,z1],[x1,y1,z0],[x0,y1,z0]],top||col,c);
+  }
+  function frustum(x,z,r0,r1,y0,y1,col,sides=14,cap=true){
+    const c=[x,(y0+y1)/2,z];
+    for(let i=0;i<sides;i++){
+      const a0=i/sides*Math.PI*2,a1=(i+1)/sides*Math.PI*2;
+      face([[x+r0*Math.cos(a0),y0,z+r0*Math.sin(a0)],[x+r0*Math.cos(a1),y0,z+r0*Math.sin(a1)],
+            [x+r1*Math.cos(a1),y1,z+r1*Math.sin(a1)],[x+r1*Math.cos(a0),y1,z+r1*Math.sin(a0)]],col,c);
+    }
+    if(cap && r1>0){ const p=[];for(let i=0;i<sides;i++){const a=i/sides*Math.PI*2;p.push([x+r1*Math.cos(a),y1,z+r1*Math.sin(a)])} face(p,col,[x,y1-1,z]); }
+  }
+  function cone(x,z,r,y0,y1,col,sides=10){
+    const c=[x,y0,z];
+    for(let i=0;i<sides;i++){
+      const a0=i/sides*Math.PI*2,a1=(i+1)/sides*Math.PI*2;
+      face([[x+r*Math.cos(a0),y0,z+r*Math.sin(a0)],[x+r*Math.cos(a1),y0,z+r*Math.sin(a1)],[x,y1,z]],col,c);
+    }
+  }
+  function tree(x,z,s){
+    frustum(x,z,.03*s,.025*s,0,.12*s,[120,82,50],6,false);
+    cone(x,z,.16*s,.08*s,.34*s,[62,122,72]);
+    cone(x,z,.12*s,.24*s,.46*s,[78,140,84]);
+  }
+  // 灯塔
+  const LX=.42,LZ=-.32;
+  const bands=[[0,.24,[245,240,232]],[.24,.48,[196,72,56]],[.48,.72,[245,240,232]],[.72,.92,[196,72,56]]];
+  bands.forEach(([a,b,col])=>{const r=t=>.14-.05*t/.92; frustum(LX,LZ,r(a),r(b),a,b,col,16,false);});
+  frustum(LX,LZ,.13,.13,.92,.95,[60,58,56],16);
+  frustum(LX,LZ,.065,.065,.95,1.07,[250,214,110],12);
+  cone(LX,LZ,.09,1.07,1.2,[150,52,42],12);
+  // 小屋
+  const HX=-.2,HZ=.5;
+  box(HX,HZ,.46,.3,.24,0,[236,222,196]);
+  const rx0=HX-.27,rx1=HX+.27,rz0=HZ-.19,rz1=HZ+.19,ry0=.24,ry1=.42, rc=[HX,.3,HZ];
+  face([[rx0,ry0,rz1],[rx1,ry0,rz1],[rx1,ry1,HZ],[rx0,ry1,HZ]],[168,58,46],rc);
+  face([[rx1,ry0,rz0],[rx0,ry0,rz0],[rx0,ry1,HZ],[rx1,ry1,HZ]],[168,58,46],rc);
+  face([[HX-.23,ry0,HZ-.15],[HX-.23,ry0,HZ+.15],[HX-.23,ry1-.01,HZ]],[226,210,180],rc);
+  face([[HX+.23,ry0,HZ-.15],[HX+.23,ry0,HZ+.15],[HX+.23,ry1-.01,HZ]],[226,210,180],rc);
+  face([[HX-.04,0,HZ+.152],[HX+.04,0,HZ+.152],[HX+.04,.15,HZ+.152],[HX-.04,.15,HZ+.152]],[110,72,46],[HX,.1,HZ]);
+  face([[HX+.10,.09,HZ+.152],[HX+.18,.09,HZ+.152],[HX+.18,.16,HZ+.152],[HX+.10,.16,HZ+.152]],[120,170,200],[HX,.1,HZ]);
+  face([[HX+.232,.08,HZ-.06],[HX+.232,.08,HZ+.06],[HX+.232,.16,HZ+.06],[HX+.232,.16,HZ-.06]],[120,170,200],[HX,.1,HZ]);
+  // 树
+  tree(-.68,.02,1.1); tree(-.46,-.56,1.3); tree(.08,-.78,.9); tree(.76,.42,1); tree(-.85,-.3,.8);
+  // 栈桥
+  box(1.18,.16,.62,.14,.03,.02,[150,110,70]);
+  [[.92,.1],[.92,.22],[1.2,.1],[1.2,.22],[1.46,.1],[1.46,.22]].forEach(([x,z])=>box(x,z,.025,.025,.08,-.05,[110,80,52]));
+  // 小船
+  const BX=1.78,BZ=-.18;
+  box(BX,BZ,.34,.12,.07,-.02,[132,86,54],[170,120,80]);
+  frustum(BX-.02,BZ,.008,.008,.05,.4,[90,70,50],5,false);
+  face([[BX-.01,.08,BZ],[BX+.15,.08,BZ],[BX-.01,.38,BZ]],[250,248,240],null,true);
+  // 礁石
+  box(.95,-.72,.16,.12,.1,0,[120,118,112]); box(1.05,-.62,.1,.1,.07,0,[140,136,128]);
+  return faces;
+}
+const LIGHT = (()=>{const v=[.55,.8,.3];const l=Math.hypot(...v);return v.map(x=>x/l)})();
+const rIsl=t=>1.27+.07*Math.sin(4*t+2)+.04*Math.sin(7*t);
+const rGrass=t=>1.0+.08*Math.sin(3*t)+.05*Math.sin(5*t+1);
+
+function renderScene(ctx,W,H,a){
+  const D=3.4,HC=1.55,th=Math.atan2(HC,D)*.82;
+  const ca=Math.cos(a),sa=Math.sin(a),ct=Math.cos(th),st=Math.sin(th);
+  const f=Math.min(W,H)*1.0, cx=W/2, cy=H*.5;
+  const cam=[D*sa,HC,D*ca];
+  const proj=(x,y,z)=>{const xr=x*ca-z*sa,zr=x*sa+z*ca;const dy=y-HC,dz=D-zr;const dep=dz*ct-dy*st,yc=dy*ct+dz*st;return [cx+f*xr/dep,cy-f*yc/dep,dep]};
+  const horizon=cy-f*Math.tan(th);
+  // 天空
+  let g=ctx.createLinearGradient(0,0,0,horizon);g.addColorStop(0,'#cfe4ec');g.addColorStop(1,'#f6ead4');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,horizon+1);
+  // 太阳（固定在世界某个方位）
+  const sunPsi=-.9, sp=sunPsi+a;
+  if(Math.cos(sp)>.2){ctx.fillStyle='rgba(244,170,90,.9)';ctx.beginPath();ctx.arc(cx+f*Math.tan(sp)*.9,horizon-H*.25,W*.045,0,7);ctx.fill();}
+  // 远山
+  ctx.fillStyle='#a9b9b8';ctx.beginPath();ctx.moveTo(0,horizon);
+  for(let px=0;px<=W;px+=3){const phi=Math.atan((px-cx)/f)-a;
+    const m=Math.max(0,Math.sin(phi+.6))**1.5; const h=m*(.5+.3*Math.sin(3*phi)+.2*Math.sin(7*phi+1)+.1*Math.sin(13*phi+2));
+    ctx.lineTo(px,horizon-h*H*.12);}
+  ctx.lineTo(W,horizon);ctx.closePath();ctx.fill();
+  // 云
+  ctx.fillStyle='rgba(255,255,255,.85)';
+  [[.3,.18,1],[1.6,.1,1.3],[2.7,.22,.9],[4.1,.13,1.1],[5.3,.2,1]].forEach(([psi,hy,s])=>{
+    const q=psi+a; if(Math.cos(q)<.25) return; const x=cx+f*Math.tan(q)*.9, y=H*hy, r=W*.035*s;
+    ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.arc(x+r*1.1,y+r*.2,r*.8,0,7);ctx.arc(x-r*1.1,y+r*.25,r*.75,0,7);ctx.fill();});
+  // 海
+  g=ctx.createLinearGradient(0,horizon,0,H);g.addColorStop(0,'#9cc6d2');g.addColorStop(1,'#5f9fb5');
+  ctx.fillStyle=g;ctx.fillRect(0,horizon,W,H-horizon);
+  // 岛
+  const poly=(rf,y,col)=>{ctx.fillStyle=col;ctx.beginPath();for(let i=0;i<=72;i++){const t=i/72*Math.PI*2,r=rf(t),p=proj(r*Math.cos(t),y,r*Math.sin(t));i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]);}ctx.closePath();ctx.fill();};
+  poly(t=>rIsl(t)+.06,0,'rgba(255,255,255,.35)');
+  poly(rIsl,0,'#e7d6a6');
+  poly(rGrass,.001,'#9dbf78');
+  // 小路
+  ctx.strokeStyle='#d9c79a';ctx.lineWidth=Math.max(2,W*.012);ctx.lineCap='round';ctx.beginPath();
+  [[-.2,.66],[0,.4],[.25,.05],[.42,-.18]].forEach(([x,z],i)=>{const p=proj(x,.002,z);i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]);});ctx.stroke();
+  // 模型
+  const list=[];
+  for(const F of MESH){
+    const c=F.pts.reduce((s,p)=>[s[0]+p[0],s[1]+p[1],s[2]+p[2]],[0,0,0]).map(v=>v/F.pts.length);
+    const vd=[cam[0]-c[0],cam[1]-c[1],cam[2]-c[2]];
+    let dot=F.n[0]*vd[0]+F.n[1]*vd[1]+F.n[2]*vd[2];
+    if(dot<0 && !F.two) continue;
+    const P=F.pts.map(p=>proj(...p));
+    let dep=0;for(const p of P)dep+=p[2];dep/=P.length;
+    let ld=F.n[0]*LIGHT[0]+F.n[1]*LIGHT[1]+F.n[2]*LIGHT[2]; if(F.two) ld=Math.abs(ld);
+    const k=.62+.38*Math.max(0,ld);
+    list.push({P,dep,col:`rgb(${F.color.map(v=>Math.round(v*k)).join(',')})`});
+  }
+  list.sort((u,v)=>v.dep-u.dep);
+  ctx.lineJoin='round';ctx.lineWidth=1;
+  for(const it of list){ctx.fillStyle=ctx.strokeStyle=it.col;ctx.beginPath();it.P.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill();ctx.stroke();}
+}
+
+/* ---------------- 统一的画帧函数 ---------------- */
+function drawFrame(ctx,W,H,i){
+  if(S.mode==='demo'){ renderScene(ctx,W,H,i/S.N*Math.PI*2); return; }
+  const img=S.frames[i]; ctx.fillStyle='#1a1a1a'; ctx.fillRect(0,0,W,H);
+  const s=Math.min(W/img.width,H/img.height),w=img.width*s,h=img.height*s;
+  ctx.drawImage(img,(W-w)/2,(H-h)/2,w,h);
+}
+function sizeCanvas(cv,cssW,cssH){
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  cv.style.width=cssW+'px';cv.style.height=cssH+'px';
+  cv.width=Math.round(cssW*dpr);cv.height=Math.round(cssH*dpr);
+}
+
+/* ---------------- 首页小动画 ---------------- */
+const hero=$('#hero'); sizeCanvas(hero,260,190);
+let heroA=0, heroRaf=0;
+function heroLoop(){ if(!$('#sStart').classList.contains('on')){heroRaf=0;return;}
+  heroA+=.006; const m=S.mode; S.mode='demo'; renderScene(hero.getContext('2d'),hero.width,hero.height,heroA); S.mode=m;
+  heroRaf=requestAnimationFrame(heroLoop); }
+function startHero(){ if(!heroRaf) heroRaf=requestAnimationFrame(heroLoop); }
+startHero();
+
+/* ---------------- 倾斜感应 ---------------- */
+function onOrient(e){
+  if(e.gamma==null) return;
+  S.hasSensor=true; S.raw=e.gamma;
+  if(S.base===null){ S.base=e.gamma; S.smooth=e.gamma; }
+}
+async function enableSensor(){
+  if(S.sensorOn) return true;
+  if(typeof DeviceOrientationEvent==='undefined') return false;
+  let denied=false;
+  try{
+    if(typeof DeviceOrientationEvent.requestPermission==='function'){
+      const r=await DeviceOrientationEvent.requestPermission();
+      if(r==='denied') denied=true;
+    }
+  }catch(err){ /* 有些浏览器会拒绝或报错，照样尝试监听，1.2 秒内没数据再退回滑条 */ }
+  if(denied && /iPhone|iPad|iPod/.test(navigator.userAgent)) return false;
+  window.addEventListener('deviceorientation',onOrient);
+  S.sensorOn=true; return true;
+}
+function setSliderMode(on){
+  S.useSlider=on;
+  $('#sliderWrap').classList.toggle('on',on);
+  $('#btnMode').textContent = on ? '改用倾斜' : '改用滑条';
+  $('#btnCal').style.display = on ? 'none' : '';
+  $('#hintSmall').textContent = on ? '拖动画面或滑条转动' : '左右倾斜手机';
+}
+
+/* ---------------- 输入 → 当前帧 ---------------- */
+function currentIdx(){
+  const N=S.N;
+  if(!S.useSlider && S.hasSensor && S.base!==null){
+    S.smooth += (S.raw-S.smooth)*.22;
+    let t=(S.smooth-S.base+RANGE/2)/RANGE;
+    t=Math.min(1,Math.max(0,t));
+    return Math.round(t*(N-1));
+  }
+  return S.sliderIdx;
+}
+const slider=$('#slider');
+slider.addEventListener('input',()=>{S.sliderIdx=+slider.value; if(!S.useSlider) setSliderMode(true);});
+// 拖动画面
+let drag=null;
+const mainCv=$('#main');
+mainCv.addEventListener('pointerdown',e=>{drag={x:e.clientX,idx:S.sliderIdx};mainCv.setPointerCapture(e.pointerId);});
+mainCv.addEventListener('pointermove',e=>{ if(!drag) return;
+  if(!S.useSlider){ if(Math.abs(e.clientX-drag.x)<6) return; drag.idx=currentIdx(); drag.x=e.clientX; setSliderMode(true); }
+  const w=mainCv.clientWidth; let v=Math.round(drag.idx+(e.clientX-drag.x)/w*S.N*.9);
+  S.sliderIdx=Math.max(0,Math.min(S.N-1,v)); slider.value=S.sliderIdx; });
+mainCv.addEventListener('pointerup',()=>drag=null);
+mainCv.addEventListener('pointercancel',()=>drag=null);
+window.addEventListener('keydown',e=>{ if(!S.running) return;
+  if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ if(!S.useSlider){S.sliderIdx=currentIdx();setSliderMode(true);}
+    S.sliderIdx=Math.max(0,Math.min(S.N-1,S.sliderIdx+(e.key==='ArrowRight'?1:-1))); slider.value=S.sliderIdx; }});
+
+/* ---------------- 游戏流程 ---------------- */
+function layout(){
+  const tgt=$('#target'), vw=Math.min(window.innerWidth,560)-40;
+  const avail=window.innerHeight-330;
+  let w=vw, h=w/S.aspect; if(h>avail){h=Math.max(200,avail);w=h*S.aspect;}
+  sizeCanvas(mainCv,Math.round(w),Math.round(h));
+  const tw=Math.round(Math.min(130,vw*.36)); sizeCanvas(tgt,tw,Math.round(tw/S.aspect));
+  S.lastDrawn=-1; drawTarget();
+}
+function drawTarget(){ const t=$('#target'); drawFrame(t.getContext('2d'),t.width,t.height,S.target); }
+function pickTarget(cur){
+  const N=S.N, lo=Math.ceil(N*.08), hi=Math.floor(N*.92);
+  const minGap=Math.round(N*60/360);
+  let t, n=0;
+  do{ t=lo+Math.floor(Math.random()*(hi-lo+1)); n++; }
+  while(n<200 && (Math.abs(t-cur)<minGap || (S.prevTarget>=0 && Math.abs(t-S.prevTarget)<minGap)));
+  S.prevTarget=t; return t;
+}
+async function startGame(){
+  const ok = await enableSensor();   // 必须在点击里第一个调用
+  cancelAnimationFrame(heroRaf); heroRaf=0;
+  S.base=null; S.hasSensor=false;
+  S.round=0; S.times=[]; S.holdStart=0;
+  slider.max=S.N-1; S.sliderIdx=Math.floor(S.N/2); slider.value=S.sliderIdx;
+  setSliderMode(!ok);
+  show('sGame');
+  S.target=pickTarget(S.sliderIdx);
+  layout(); updateRoundUI();
+  S.gameStart=S.roundStart=performance.now(); S.running=true;
+  if(ok) setTimeout(()=>{ if(S.running && !S.hasSensor) setSliderMode(true); },1200);
+  cancelAnimationFrame(S.raf); S.raf=requestAnimationFrame(loop);
+}
+function updateRoundUI(){
+  $('#roundTxt').textContent=`第 ${S.round+1} / ${ROUNDS} 关 · 容差 ±${TOL[S.round]}°`;
+  drawTarget();
+}
+function loop(now){
+  if(!S.running) return;
+  const idx=currentIdx();
+  if(idx!==S.lastDrawn){ drawFrame(mainCv.getContext('2d'),mainCv.width,mainCv.height,idx); S.lastDrawn=idx; }
+  $('#timeTxt').textContent=((now-S.gameStart)/1000).toFixed(1)+'s';
+  const diff=Math.abs(idx-S.target)/S.N*360, tol=TOL[S.round];
+  const close=Math.max(0,1-diff/120);
+  const meter=$('#meter'); meter.style.width=(close*100)+'%';
+  const inside=diff<=tol+1e-6;
+  const hb=$('#hintBig');
+  if(inside){
+    if(!S.holdStart) S.holdStart=now;
+    const p=Math.min(1,(now-S.holdStart)/HOLD);
+    $('#hold').style.width=(p*100)+'%'; $('#holdWrap').style.opacity=1;
+    mainCv.style.borderColor='var(--ok)'; meter.style.background='var(--ok)';
+    hb.textContent='稳住！'; hb.style.color='var(--ok)';
+    if(p>=1){ nextRound(now); }
+  }else{
+    S.holdStart=0; $('#holdWrap').style.opacity=0; $('#hold').style.width='0';
+    mainCv.style.borderColor = close>.7 ? '#e0a040' : 'var(--line)';
+    meter.style.background = close>.7 ? '#e0a040' : 'var(--accent)';
+    hb.style.color='var(--ink)';
+    if(S.round<HINT_ROUNDS){
+      const right=S.target>idx;
+      hb.textContent = S.useSlider ? (right?'往右 →':'← 往左') : (right?'向右倾斜 →':'← 向左倾斜');
+    }else{
+      hb.textContent = close>.85 ? '很近了' : close>.6 ? '有点接近' : '找找看';
+    }
+  }
+  S.raf=requestAnimationFrame(loop);
+}
+function nextRound(now){
+  S.times.push((now-S.roundStart)/1000);
+  try{ navigator.vibrate && navigator.vibrate(40); }catch(e){}
+  const fl=$('#flash'); fl.style.opacity=1; setTimeout(()=>fl.style.opacity=0,350);
+  S.round++; S.holdStart=0;
+  if(S.round>=ROUNDS){ endGame(now); return; }
+  S.target=pickTarget(S.target); S.roundStart=now; updateRoundUI();
+}
+function endGame(now){
+  S.running=false; cancelAnimationFrame(S.raf);
+  const total=(now-S.gameStart)/1000;
+  $('#scoreTxt').textContent=total.toFixed(1)+'s';
+  $('#rankTxt').textContent= total<30?'神之手': total<45?'手很稳': total<70?'还不错':'多练练～';
+  const key='tiltmatch-best-'+S.mode; let best=null;
+  try{ best=parseFloat(localStorage.getItem(key)); if(!(best>0)||total<best){ localStorage.setItem(key,String(total)); $('#bestTxt').textContent= best>0?`新纪录！之前最好 ${best.toFixed(1)}s`:'第一局，记录已保存在本机'; } else $('#bestTxt').textContent=`本机最好成绩 ${best.toFixed(1)}s`; }
+  catch(e){ $('#bestTxt').textContent=''; }
+  $('#chips').innerHTML=S.times.map((t,i)=>`<span class="chip"><em>${i+1}</em>${t.toFixed(1)}s</span>`).join('');
+  show('sEnd');
+}
+
+/* ---------------- 上传视频 → 拆帧 ---------------- */
+function seek(v,t){ return new Promise(res=>{ let done=false; const fin=()=>{if(done)return;done=true;v.removeEventListener('seeked',fin);res();};
+  v.addEventListener('seeked',fin); v.currentTime=t; setTimeout(fin,2500); }); }
+async function extractFrames(file){
+  show('sLoad'); $('#loadText').textContent='正在读取视频…'; $('#loadBar').style.width='0';
+  const v=document.createElement('video'); v.muted=true; v.playsInline=true; v.setAttribute('playsinline',''); v.preload='auto';
+  const url=URL.createObjectURL(file); v.src=url;
+  await new Promise((res,rej)=>{ v.onloadedmetadata=res; v.onerror=()=>rej(new Error('这个视频格式读不了，换个 MP4 试试')); setTimeout(()=>rej(new Error('读取超时')),15000); });
+  try{ await v.play(); v.pause(); }catch(e){}
+  const dur=v.duration; if(!isFinite(dur)||dur<=0) throw new Error('读不到视频时长');
+  const N=Math.max(24,Math.min(60,Math.round(dur*12)));
+  const sc=Math.min(1,480/Math.max(v.videoWidth,v.videoHeight));
+  const w=Math.max(1,Math.round(v.videoWidth*sc)), h=Math.max(1,Math.round(v.videoHeight*sc));
+  const frames=[];
+  for(let i=0;i<N;i++){
+    await seek(v,Math.min(dur-.01,(i+.5)/N*dur));
+    const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(v,0,0,w,h); frames.push(c);
+    $('#loadText').textContent=`正在拆帧 ${i+1} / ${N}`; $('#loadBar').style.width=((i+1)/N*100)+'%';
+  }
+  URL.revokeObjectURL(url);
+  return {frames,N,aspect:w/h};
+}
+
+/* ---------------- 按钮 ---------------- */
+$('#btnDemo').addEventListener('click',()=>{ S.mode='demo'; S.N=72; S.aspect=1; S.frames=null; startGame(); });
+$('#btnUpload').addEventListener('click',()=>{ $('#startErr').textContent=''; $('#file').click(); });
+$('#file').addEventListener('change',async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{
+    const r=await extractFrames(f);
+    S.mode='video'; S.frames=r.frames; S.N=r.N; S.aspect=r.aspect;
+    $('#readyInfo').textContent=`拆成了 ${r.N} 帧。倾斜手机就会在这些帧之间切换。`;
+    const pv=$('#readyPrev'), pw=Math.min(300,window.innerWidth-40); sizeCanvas(pv,pw,Math.round(pw/r.aspect));
+    drawFrame(pv.getContext('2d'),pv.width,pv.height,Math.floor(r.N/2));
+    show('sReady');
+  }catch(err){ show('sStart'); startHero(); $('#startErr').textContent=err.message||'读取失败'; }
+});
+$('#btnGoVideo').addEventListener('click',()=>startGame());
+$('#btnBack1').addEventListener('click',()=>{ show('sStart'); startHero(); });
+$('#btnCal').addEventListener('click',()=>{ if(S.hasSensor){ S.base=S.raw; S.smooth=S.raw; } });
+$('#btnMode').addEventListener('click',async ()=>{
+  if(S.useSlider){ const ok=await enableSensor(); if(ok){ S.base=null; setSliderMode(false); setTimeout(()=>{ if(!S.hasSensor) setSliderMode(true); },1200);} }
+  else { S.sliderIdx=currentIdx(); slider.value=S.sliderIdx; setSliderMode(true); }
+});
+$('#btnQuit').addEventListener('click',()=>{ S.running=false; cancelAnimationFrame(S.raf); show('sStart'); startHero(); });
+$('#btnAgain').addEventListener('click',()=>startGame());
+$('#btnHome').addEventListener('click',()=>{ show('sStart'); startHero(); });
+window.addEventListener('resize',()=>{ if(S.running) layout(); });
+})();
+</script>
+</body>
+</html>

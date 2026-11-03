@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>小小鉴宝师</title>
+<style>
+:root{--ink:#2f2a3a;--muted:#8d8698;--cream:#fffaf2;--gold:#d9a441;--blue:#2c5aa0}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#2a3b44;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#cv{position:fixed;inset:0;display:block;touch-action:none}
+.panel{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:flex-start;padding:calc(env(safe-area-inset-top) + 20px) 22px calc(env(safe-area-inset-bottom) + 20px);background:rgba(20,26,34,.45);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);overflow-y:auto}
+.panel.on{display:flex}
+.card{margin:auto 0;background:var(--cream);border-radius:26px;padding:24px 20px 20px;width:100%;max-width:360px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+h1{font-size:30px;letter-spacing:2px}
+.sub{color:var(--muted);font-size:14px;margin-top:6px;line-height:1.6}
+.rules{text-align:left;margin:14px 0 4px;display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:1.5}
+.rules div{display:flex;gap:10px;align-items:flex-start}
+.rules b{flex:none;width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:12px}
+button{font:inherit;border:0;border-radius:16px;padding:14px 16px;font-size:17px;font-weight:700;cursor:pointer;width:100%;color:#fff;background:var(--ink);margin-top:12px;transition:transform .08s}
+button:active{transform:scale(.97)}
+button.soft{background:#efe7da;color:var(--ink);font-weight:600;font-size:15px}
+.cust{background:#f5efe4;border-radius:14px;padding:12px;font-size:15px;line-height:1.6;margin-top:12px;text-align:left}
+.cust b{color:var(--blue)}
+.verdict{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 14px);width:min(360px,calc(100% - 32px));display:none;gap:10px}
+.verdict.on{display:flex}
+.verdict button{margin:0;box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.verdict .real{background:#2f7a55}
+.verdict .fake{background:#c0453a}
+.hud{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top) + 8px);display:none;justify-content:center;gap:8px;pointer-events:none}
+.hud.on{display:flex}
+.hud button{pointer-events:auto;width:auto;margin:0;padding:6px 11px;font-size:12px;font-weight:600;border-radius:10px;background:rgba(255,255,255,.18);color:#fff}
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 150px);transform:translateX(-50%);background:rgba(255,250,242,.96);color:var(--ink);padding:10px 16px;border-radius:14px;font-size:14px;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none;max-width:86%;text-align:center;line-height:1.5;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+.result{font-size:46px;margin-top:4px}
+.big{font-size:40px;font-weight:800;margin-top:6px}
+.list{text-align:left;margin-top:10px;font-size:13px;line-height:1.7;background:#f5efe4;border-radius:12px;padding:10px 12px}
+.list div{display:flex;justify-content:space-between;gap:8px}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="hud" id="hud"><button id="bCal">校准</button><button id="bMute">声音：开</button><button id="bPause">暂停</button></div>
+<div class="verdict" id="verdict"><button class="real" id="bReal">真品</button><button class="fake" id="bFake">赝品</button></div>
+<div class="toast" id="toast"></div>
+
+<section class="panel on" id="pStart">
+  <div class="card">
+    <h1>小小鉴宝师</h1>
+    <div class="sub">今天有 6 位客人带着宝贝来找你鉴定</div>
+    <div class="rules">
+      <div><b>1</b><span>左右倾斜手机，绕着瓷器转一圈（也可以拖动画面）。</span></div>
+      <div><b>2</b><span>看到可疑的地方就<strong>点一下</strong>用放大镜细看。破绽常常藏在<strong>背面</strong>。</span></div>
+      <div><b>3</b><span>看完判断：<strong>真品</strong>还是<strong>赝品</strong>？找到的破绽越多，得分越高。</span></div>
+    </div>
+    <button id="bStart">开门营业</button>
+    <div class="sub" id="best" style="font-size:12px"></div>
+  </div>
+</section>
+
+<section class="panel" id="pIntro">
+  <div class="card">
+    <div class="sub" id="iNum"></div>
+    <div class="cust" id="iCust"></div>
+    <button id="bGo">接过来看看</button>
+  </div>
+</section>
+
+<section class="panel" id="pResult">
+  <div class="card">
+    <div class="result" id="rIcon"></div>
+    <h1 style="font-size:24px" id="rTitle"></h1>
+    <div class="sub" id="rText"></div>
+    <div class="list" id="rList"></div>
+    <div class="big" id="rScore"></div>
+    <button id="bNext">下一位客人</button>
+  </div>
+</section>
+
+<section class="panel" id="pEnd">
+  <div class="card">
+    <div class="sub">今天的营业结束啦</div>
+    <div class="big" id="eScore"></div>
+    <div style="font-size:20px;font-weight:700;color:var(--blue);margin-top:6px" id="eRank"></div>
+    <div class="list" id="eList"></div>
+    <div class="sub" id="eBest" style="font-size:12px"></div>
+    <button id="bAgain">明天继续营业</button>
+  </div>
+</section>
+
+<section class="panel" id="pPause">
+  <div class="card"><h1 style="font-size:26px">暂停中</h1><button id="bResume">继续</button><button class="soft" id="bQuit">回到首页</button></div>
+</section>
+
+<script>
+(() => {
+const $=s=>document.querySelector(s);
+const cv=$('#cv'), ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1;
+function resize(){ DPR=Math.min(2,devicePixelRatio||1); W=Math.round(innerWidth*DPR); H=Math.round(innerHeight*DPR); cv.width=W; cv.height=H; cv.style.width=innerWidth+'px'; cv.style.height=innerHeight+'px'; }
+resize(); addEventListener('resize',resize);
+const wrap=d=>((d%360)+540)%360-180, rand=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.length)], RAD=Math.PI/180;
+const MAXV=100, ITEMS=6;
+const norm=v=>{const l=Math.hypot(v[0],v[1],v[2])||1;return [v[0]/l,v[1]/l,v[2]/l]};
+
+/* ================= 器型（旋转体剖面：[高度, 半径]） ================= */
+const SHAPES={
+  '梅瓶':  [[0,.15],[.04,.17],[.2,.2],[.42,.27],[.58,.3],[.68,.27],[.75,.18],[.8,.09],[.86,.08],[.9,.1]],
+  '葫芦瓶':[[0,.16],[.04,.22],[.16,.27],[.28,.24],[.38,.13],[.44,.12],[.52,.17],[.62,.18],[.72,.12],[.8,.06],[.88,.065]],
+  '将军罐':[[0,.17],[.04,.23],[.2,.3],[.38,.33],[.5,.29],[.6,.2],[.64,.15],[.68,.16],[.72,.13],[.76,.06]],
+  '玉壶春':[[0,.15],[.04,.17],[.14,.24],[.28,.27],[.4,.23],[.52,.12],[.66,.07],[.78,.08],[.88,.12]],
+};
+const CUSTOMERS=[
+  ['王大爷','这是我家祖传的宝贝，爷爷的爷爷传下来的！'],['李阿姨','我在古玩市场淘的，老板说是官窑！'],['小张','网上拍卖买的，花了好几万，您给看看？'],
+  ['陈奶奶','老房子拆迁时从墙里挖出来的。'],['赵老板','朋友抵债给我的，说值一套房。'],['刘同学','在姥姥家床底下翻到的，能值钱吗？'],
+  ['孙师傅','收废品收来的，我觉得不简单。'],['周小姐','前男友送的，说是古董……']];
+const FLAWS={
+  tag:    {name:'价签', desc:'背面还贴着价签「¥19.9」', tier:0},
+  madein: {name:'产地标签', desc:'贴着一张「义乌制造」的小标签', tier:0},
+  qr:     {name:'二维码', desc:'瓷器上印着二维码，扫出来是网店链接', tier:0},
+  crack:  {name:'修补裂纹', desc:'一道用胶粘过的裂纹，裂口很新', tier:1},
+  pink:   {name:'粉色的花', desc:'这朵花是粉红色的，传统青花瓷不会出现这种颜料', tier:1},
+  seal:   {name:'款识错字', desc:'款识写成「大清乾龍年製」，「隆」字写错了', tier:2},
+  logo:   {name:'卡通贴纸', desc:'瓶身上贴着一个卡通小熊贴纸', tier:0},
+};
+
+/* ================= 生成一件藏品 ================= */
+function makeItem(idx,isFake){
+  const shape=pick(Object.keys(SHAPES)), prof=SHAPES[shape];
+  const top=prof[prof.length-1][0];
+  const rAt=y=>{ for(let i=1;i<prof.length;i++){ if(y<=prof[i][0]){ const [y0,r0]=prof[i-1],[y1,r1]=prof[i]; return r0+(r1-r0)*(y-y0)/(y1-y0); } } return prof[prof.length-1][1]; };
+  // 花纹：几条蓝色带 + 一圈花
+  const bands=[[top*.06,top*.1],[top*.9,top*.94]]; if(Math.random()<.6) bands.push([top*.3,top*.33]);
+  const fy=top*rand(.45,.6), nF=pick([5,6,7]), off=rand(0,360);
+  const decals=[];
+  for(let i=0;i<nF;i++) decals.push({k:'flower',az:off+i*360/nF,y:fy+(i%2?top*.05:0),s:.1});
+  decals.push({k:'cloud',az:off+180/nF,y:top*.2,s:.075}); decals.push({k:'cloud',az:off+180/nF+180,y:top*.2,s:.075});
+  const sealAz=rand(150,210); // 款识在背面偏下
+  decals.push({k:'seal',az:sealAz,y:top*.2,s:.09,typo:false});
+  const flaws=[];
+  if(isFake){
+    const maxTier= idx<2?0: idx<4?1:2;
+    const pool=Object.keys(FLAWS).filter(k=>FLAWS[k].tier<=maxTier && (k!=='seal'||maxTier===2));
+    const n= idx<2?1: pick([1,2]);
+    const chosen=[]; while(chosen.length<n){ const k=pick(pool); if(!chosen.includes(k)) chosen.push(k); }
+    // 越往后越倾向于用更难发现的破绽
+    if(idx>=4 && !chosen.some(k=>FLAWS[k].tier>=1)) chosen[0]=pick(['crack','pink','seal']);
+    for(const k of chosen){
+      if(k==='pink'){ const f=pick(decals.filter(d=>d.k==='flower'&&Math.abs(wrap(d.az))>60)) || decals[0]; f.pink=true; f.flaw='pink'; flaws.push('pink'); continue; }
+      if(k==='seal'){ const s=decals.find(d=>d.k==='seal'); s.typo=true; s.flaw='seal'; flaws.push('seal'); continue; }
+      const az=rand(110,250)+(Math.random()<.3?rand(-60,60):0);
+      decals.push({k, az, y: k==='crack'? top*rand(.35,.7) : top*rand(.25,.75), s: k==='crack'?.16:.095, flaw:k});
+      flaws.push(k);
+    }
+  }
+  const [cn,cs]=CUSTOMERS[(idx+Math.floor(Math.random()*8))%8];
+  return {shape,prof,top,rAt,bands,decals,flaws,isFake,cust:cn,say:cs,value:Math.round(rand(8,120))};
+}
+function buildVessel(it){
+  const faces=[], seg=36, rings=[];
+  const N=Math.round(it.top/.025); for(let i=0;i<=N;i++){ const y=it.top*i/N; rings.push([y,it.rAt(y)]); }
+  const glaze=[238,243,248], blue=[44,90,160];
+  for(let i=0;i<N;i++){ const [y0,r0]=rings[i],[y1,r1]=rings[i+1], ym=(y0+y1)/2;
+    const inBand=it.bands.some(([a,b])=>ym>=a&&ym<=b);
+    const col=inBand?blue:glaze;
+    const dr=r1-r0, dy=y1-y0, nl=Math.hypot(dr,dy)||1, ny=-dr/nl, nr=dy/nl;
+    for(let j=0;j<seg;j++){ const a0=j/seg*Math.PI*2, a1=(j+1)/seg*Math.PI*2, am=(a0+a1)/2;
+      faces.push({pts:[[r0*Math.sin(a0),y0,r0*Math.cos(a0)],[r0*Math.sin(a1),y0,r0*Math.cos(a1)],[r1*Math.sin(a1),y1,r1*Math.cos(a1)],[r1*Math.sin(a0),y1,r1*Math.cos(a0)]],
+        n:[nr*Math.sin(am),ny,nr*Math.cos(am)], c:[(r0+r1)/2*Math.sin(am),ym,(r0+r1)/2*Math.cos(am)], col, gloss:true}); } }
+  // 瓶口（深色内壁）
+  const [ty,tr]=rings[N]; const lip=[]; for(let j=0;j<seg;j++){ const a=j/seg*Math.PI*2; lip.push([tr*Math.sin(a),ty,tr*Math.cos(a)]); }
+  faces.push({pts:lip,n:[0,1,0],c:[0,ty,0],col:[40,50,70]});
+  return faces;
+}
+// 展台（世界里固定）
+const STAND=(()=>{ const F=[], seg=24, prof=[[-.5,.34],[-.08,.34],[-.06,.37],[0,.37]];
+  for(let i=0;i<prof.length-1;i++){ const [y0,r0]=prof[i],[y1,r1]=prof[i+1]; const dr=r1-r0, dy=y1-y0, nl=Math.hypot(dr,dy)||1;
+    for(let j=0;j<seg;j++){ const a0=j/seg*Math.PI*2,a1=(j+1)/seg*Math.PI*2,am=(a0+a1)/2;
+      F.push({pts:[[r0*Math.sin(a0),y0,r0*Math.cos(a0)],[r0*Math.sin(a1),y0,r0*Math.cos(a1)],[r1*Math.sin(a1),y1,r1*Math.cos(a1)],[r1*Math.sin(a0),y1,r1*Math.cos(a0)]],n:[dy/nl*Math.sin(am),-dr/nl,dy/nl*Math.cos(am)],c:[(r0+r1)/2*Math.sin(am),(y0+y1)/2,(r0+r1)/2*Math.cos(am)],col:[122,42,48]}); } }
+  const topP=[]; for(let j=0;j<seg;j++){ const a=j/seg*Math.PI*2; topP.push([.37*Math.sin(a),0,.37*Math.cos(a)]); } F.push({pts:topP,n:[0,1,0],c:[0,0,0],col:[150,58,62],top:true});
+  return F; })();
+const LIGHT=norm([.3,.9,.45]);
+
+/* ================= 画花纹和破绽 ================= */
+function drawDecal(c,d,s,fx,found){
+  c.save(); c.scale(Math.max(.15,fx),1); c.lineCap='round'; c.lineJoin='round';
+  const blue='#2c5aa0';
+  if(d.k==='flower'){ const col=d.pink?'#f08aa8':blue, light=d.pink?'#f7b6c8':'#5f86c4';
+    for(let i=0;i<5;i++){ const a=i/5*Math.PI*2-Math.PI/2; c.fillStyle=i%2?col:light; c.beginPath(); c.ellipse(Math.cos(a)*s*.45,Math.sin(a)*s*.45,s*.38,s*.22,a,0,7); c.fill(); }
+    c.fillStyle=col; c.beginPath(); c.arc(0,0,s*.18,0,7); c.fill();
+    c.strokeStyle=blue; c.lineWidth=s*.07; c.beginPath(); c.moveTo(-s*.9,s*.7); c.quadraticCurveTo(-s*.4,s*.2,-s*.2,s*.4); c.moveTo(s*.9,s*.7); c.quadraticCurveTo(s*.5,s*.3,s*.25,s*.45); c.stroke();
+    c.fillStyle=blue; c.beginPath(); c.ellipse(-s*.75,s*.45,s*.18,s*.08,-.6,0,7); c.ellipse(s*.75,s*.5,s*.18,s*.08,.6,0,7); c.fill(); }
+  if(d.k==='cloud'){ c.strokeStyle=blue; c.lineWidth=s*.12; c.beginPath(); c.arc(-s*.3,0,s*.3,Math.PI*.2,Math.PI*1.9); c.stroke(); c.beginPath(); c.arc(s*.3,0,s*.3,Math.PI*1.1,Math.PI*.8); c.stroke(); }
+  if(d.k==='seal'){ c.strokeStyle=blue; c.lineWidth=s*.06; c.strokeRect(-s*.75,-s,s*1.5,s*2); c.fillStyle=blue; c.font=`700 ${s*.58}px "Songti SC","STSong","Noto Serif SC",serif`; c.textAlign='center'; c.textBaseline='middle';
+    const t=d.typo?['大','清','乾','龍','年','製']:['大','清','乾','隆','年','製'];
+    // 竖排两列：右列 大清乾，左列 隆年製
+    for(let i=0;i<3;i++){ c.fillText(t[i],s*.35,-s*.62+i*s*.62); c.fillText(t[i+3],-s*.35,-s*.62+i*s*.62); } }
+  if(d.k==='tag'){ c.fillStyle='#fff'; c.strokeStyle='#d0d0d0'; c.lineWidth=s*.05; c.beginPath(); c.moveTo(-s,-s*.5); c.lineTo(s*.7,-s*.5); c.lineTo(s,0); c.lineTo(s*.7,s*.5); c.lineTo(-s,s*.5); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle='#e0403a'; c.font=`800 ${s*.48}px sans-serif`; c.textAlign='center'; c.textBaseline='middle'; c.fillText('¥19.9',-s*.1,0); }
+  if(d.k==='madein'){ c.fillStyle='#fffbe6'; c.strokeStyle='#e0b040'; c.lineWidth=s*.05; c.beginPath(); c.rect(-s,-s*.45,s*2,s*.9); c.fill(); c.stroke(); c.fillStyle='#8a5a10'; c.font=`700 ${s*.36}px sans-serif`; c.textAlign='center'; c.textBaseline='middle'; c.fillText('义乌制造',0,0); }
+  if(d.k==='qr'){ c.fillStyle='#fff'; c.fillRect(-s*.6,-s*.6,s*1.2,s*1.2); c.fillStyle='#222'; const g=7, u=s*1.1/g;
+    for(let i=0;i<g;i++) for(let j=0;j<g;j++){ const corner=(i<2&&j<2)||(i>4&&j<2)||(i<2&&j>4); if(corner||((i*7+j*3+i*j)%3===0)) c.fillRect(-s*.55+i*u,-s*.55+j*u,u*.92,u*.92); } }
+  if(d.k==='crack'){ c.strokeStyle='#6a5a4a'; c.lineWidth=s*.04; c.beginPath(); c.moveTo(-s*.2,-s); [[.1,-.6],[-.15,-.25],[.12,.1],[-.1,.45],[.15,.75],[0,1]].forEach(([x,y])=>c.lineTo(s*x,s*y)); c.stroke();
+    c.strokeStyle='rgba(255,230,160,.8)'; c.lineWidth=s*.025; c.stroke(); c.beginPath(); c.moveTo(s*.12,.1*s); c.lineTo(s*.4,s*.25); c.strokeStyle='#6a5a4a'; c.lineWidth=s*.03; c.stroke(); }
+  if(d.k==='logo'){ c.fillStyle='#c98a50'; c.beginPath(); c.arc(-s*.35,-s*.35,s*.22,0,7); c.arc(s*.35,-s*.35,s*.22,0,7); c.arc(0,0,s*.5,0,7); c.fill(); c.fillStyle='#f5d7b0'; c.beginPath(); c.ellipse(0,s*.15,s*.22,s*.15,0,0,7); c.fill(); c.fillStyle='#2b2235'; c.beginPath(); c.arc(-s*.17,-s*.08,s*.06,0,7); c.arc(s*.17,-s*.08,s*.06,0,7); c.arc(0,s*.08,s*.05,0,7); c.fill(); }
+  c.restore();
+  if(found){ c.strokeStyle='#ff4f4f'; c.lineWidth=Math.max(2,s*.08); c.beginPath(); c.arc(0,0,s*1.25,0,7); c.stroke(); }
+  if(found==='ok'){ c.strokeStyle='#3aa66a'; c.lineWidth=Math.max(2,s*.06); c.setLineDash([s*.15,s*.1]); c.beginPath(); c.arc(0,0,s*1.2,0,7); c.stroke(); c.setLineDash([]); }
+}
+
+/* ================= 渲染 ================= */
+let lastHits=[], vesselFaces=null;
+function render3D(c,W,H,p,it){
+  const D=1.6, HC=.74, TY=.43, th=Math.atan2(HC-TY,D);
+  const a=p*RAD, ca=Math.cos(a), sa=Math.sin(a), ct=Math.cos(th), s_t=Math.sin(th);
+  const f=Math.min(W,H*.72)*1.12, cx=W/2, cy=H*.46;
+  const cam=[D*sa,HC,D*ca];
+  const proj=(x,y,z)=>{const xr=x*ca-z*sa, zr=x*sa+z*ca, dy=y-HC, dz=D-zr; const dep=dz*ct-dy*s_t, yc=dy*ct+dz*s_t; return [cx+f*xr/dep, cy-f*yc/dep, dep]};
+  const hz=cy-f*Math.tan(th)+H*.12;
+  // 背景：鉴宝室
+  let g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,'#2f4652'); g.addColorStop(.6,'#24363f'); g.addColorStop(1,'#1b2830'); c.fillStyle=g; c.fillRect(0,0,W,H);
+  const wallItem=(ps,fn)=>{ const q=ps*RAD+a; if(Math.cos(q)<.3) return; fn(cx+f*Math.tan(q)*.8,hz,H*.05); };
+  wallItem(0,(x,y,u)=>{ c.fillStyle='#e9dfc8'; c.fillRect(x-u*.6,y-u*5,u*1.2,u*3.6); c.fillStyle='#6a4a3a'; c.fillRect(x-u*.75,y-u*5.1,u*1.5,u*.2); c.fillRect(x-u*.75,y-u*1.5,u*1.5,u*.2); c.fillStyle='#2b2235'; c.font=`700 ${u*.6}px serif`; c.textAlign='center'; ['鉴','宝'].forEach((t,i)=>c.fillText(t,x,y-u*3.8+i*u*1.1)); });
+  wallItem(90,(x,y,u)=>{ c.strokeStyle='#8a6a4a'; c.lineWidth=u*.15; c.strokeRect(x-u*1.6,y-u*4,u*3.2,u*3.2); c.beginPath(); c.moveTo(x-u*1.6,y-u*2.4); c.lineTo(x+u*1.6,y-u*2.4); c.moveTo(x,y-u*4); c.lineTo(x,y-u*.8); c.stroke();
+    c.fillStyle='#c9d6e0'; c.beginPath(); c.ellipse(x-u*.8,y-u*2.9,u*.3,u*.45,0,0,7); c.fill(); c.fillStyle='#d9a441'; c.fillRect(x+u*.5,y-u*3.2,u*.6,u*.7); c.fillStyle='#8fb0a0'; c.beginPath(); c.arc(x+u*.8,y-u*1.3,u*.4,0,7); c.fill(); });
+  wallItem(180,(x,y,u)=>{ c.fillStyle='#c0453a'; c.beginPath(); c.ellipse(x,y-u*3.5,u*.6,u*.75,0,0,7); c.fill(); c.fillStyle='#ffd27a'; c.fillRect(x-u*.1,y-u*2.75,u*.2,u*.5); c.fillStyle='#e9dfc8'; c.fillRect(x-u*1.8,y-u*2,u*1,u*1.6); c.fillRect(x+u*.8,y-u*2,u*1,u*1.6); });
+  wallItem(270,(x,y,u)=>{ c.fillStyle='#4a6a5a'; c.fillRect(x-u*1.5,y-u*3.5,u*3,u*3.2); c.strokeStyle='#d9a441'; c.lineWidth=u*.1; c.strokeRect(x-u*1.4,y-u*3.4,u*2.8,u*3); c.fillStyle='#e9dfc8'; c.beginPath(); c.moveTo(x-u,y-u*.8); c.lineTo(x-u*.2,y-u*2.6); c.lineTo(x+u*.4,y-u*1.6); c.lineTo(x+u,y-u*2.2); c.lineTo(x+u*1.2,y-u*.8); c.fill(); });
+  // 地面
+  c.fillStyle='#1d2b33'; c.fillRect(0,hz,W,H-hz);
+  // 聚光灯
+  const sp=c.createRadialGradient(cx,cy,f*.05,cx,cy,f*.75); sp.addColorStop(0,'rgba(255,240,210,.22)'); sp.addColorStop(1,'rgba(255,240,210,0)'); c.fillStyle=sp; c.fillRect(0,0,W,H);
+  // 三角形收集
+  const list=[];
+  const add=(arr,yoff=0)=>{ for(const fc of arr){ const cw=[fc.c[0],fc.c[1]+yoff,fc.c[2]];
+      if(fc.n[0]*(cam[0]-cw[0])+fc.n[1]*(cam[1]-cw[1])+fc.n[2]*(cam[2]-cw[2])<=0) continue;
+      const P=fc.pts.map(q=>proj(q[0],q[1]+yoff,q[2])); let dep=0; for(const q of P) dep+=q[2];
+      const ld=fc.n[0]*LIGHT[0]+fc.n[1]*LIGHT[1]+fc.n[2]*LIGHT[2]; let k=.6+.4*Math.max(0,ld);
+      let col=fc.col.map(v=>Math.min(255,Math.round(v*k)));
+      if(fc.gloss){ const vd=norm([cam[0]-cw[0],cam[1]-cw[1],cam[2]-cw[2]]); const hv=norm([LIGHT[0]+vd[0],LIGHT[1]+vd[1],LIGHT[2]+vd[2]]); const sp=Math.pow(Math.max(0,fc.n[0]*hv[0]+fc.n[1]*hv[1]+fc.n[2]*hv[2]),40)*.7; col=col.map(v=>Math.min(255,Math.round(v+(255-v)*sp))); }
+      list.push({P,dep:dep/P.length+(fc.top?.3:0),col:`rgb(${col.join(',')})`}); } };
+  add(STAND);
+  if(it){
+    add(vesselFaces);
+    const hits=[];
+    for(const d of it.decals){ const r=it.rAt(d.y)+.004, az=d.az*RAD; const pw=[r*Math.sin(az),d.y,r*Math.cos(az)];
+      // 法线（考虑瓶身斜度）
+      const dy=.01, dr=(it.rAt(Math.min(it.top,d.y+dy))-it.rAt(Math.max(0,d.y-dy)))/(2*dy); const nl=Math.hypot(1,dr); const n=[Math.sin(az)/nl,-dr/nl,Math.cos(az)/nl];
+      const vd=norm([cam[0]-pw[0],cam[1]-pw[1],cam[2]-pw[2]]); const dot=n[0]*vd[0]+n[1]*vd[1]+n[2]*vd[2]; if(dot<.08) continue;
+      const q=proj(...pw), s=f*d.s/q[2];
+      list.push({decal:d,x:q[0],y:q[1],dep:q[2]-.005,s,fx:dot});
+      if(dot>.3) hits.push({d,x:q[0],y:q[1],r:Math.max(s*1.2,26*DPR)}); }
+    lastHits=hits;
+  }
+  list.sort((u,v)=>v.dep-u.dep);
+  c.lineJoin='round'; c.lineWidth=1;
+  for(const itx of list){ if(itx.decal){ c.save(); c.translate(itx.x,itx.y); drawDecal(c,itx.decal,itx.s,itx.fx, G.found.has(itx.decal)?(itx.decal.flaw?true:'ok'):false); c.restore(); continue; }
+    c.fillStyle=c.strokeStyle=itx.col; c.beginPath(); itx.P.forEach((q,i)=>i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1])); c.closePath(); c.fill(); c.stroke(); }
+}
+
+/* ================= 状态 ================= */
+const G={ running:false, paused:false, idx:0, item:null, p:0, t:0, found:new Set(), checked:0, score:0, log:[], plan:[],
+  sensorOn:false, hasSensor:false, base:null, gamma:0, sm:0, keyV:0, drag:null, dragV:0, dragDist:0, touchMode:false, muted:false, ac:null, last:0, mag:null };
+function audioInit(){ try{ if(!G.ac){ const A=window.AudioContext||window.webkitAudioContext; if(A) G.ac=new A(); } G.ac&&G.ac.resume&&G.ac.resume(); }catch(e){} }
+function tone(f0,f1,dur,type='sine',vol=.1,delay=0){ if(G.muted||!G.ac) return; try{ const t=G.ac.currentTime+delay,o=G.ac.createOscillator(),g=G.ac.createGain(); o.type=type; o.frequency.setValueAtTime(f0,t); o.frequency.exponentialRampToValueAtTime(f1,t+dur); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+.01); g.gain.exponentialRampToValueAtTime(.001,t+dur); o.connect(g); g.connect(G.ac.destination); o.start(t); o.stop(t+dur+.02);}catch(e){} }
+const sfxFlaw=()=>{tone(900,600,.1,'square',.05);tone(600,1200,.2,'triangle',.08,.08);};
+const sfxOk=()=>tone(800,900,.08,'sine',.06);
+const sfxRight=()=>{[660,880,1100,1320].forEach((f,i)=>tone(f,f*1.2,.15,'triangle',.08,i*.09));};
+const sfxWrongV=()=>{tone(400,250,.35,'sawtooth',.06);};
+function onOrient(e){ if(e.gamma==null) return; G.hasSensor=true; G.gamma=e.gamma; if(G.base===null){G.base=e.gamma;G.sm=e.gamma;} }
+async function enableSensor(){ if(G.sensorOn) return true; if(typeof DeviceOrientationEvent==='undefined') return false; let denied=false;
+  try{ if(typeof DeviceOrientationEvent.requestPermission==='function'){ const r=await DeviceOrientationEvent.requestPermission(); if(r==='denied') denied=true; } }catch(e){}
+  if(denied && /iPhone|iPad|iPod/.test(navigator.userAgent)) return false; addEventListener('deviceorientation',onOrient); G.sensorOn=true; return true; }
+function toast(m,ms=2200){ const t=$('#toast'); t.textContent=m; t.style.opacity=1; clearTimeout(toast.h); toast.h=setTimeout(()=>t.style.opacity=0,ms); }
+cv.addEventListener('pointerdown',e=>{ if(!G.running) return; G.drag={x:e.clientX}; G.dragDist=0; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove',e=>{ if(!G.drag) return; const dx=e.clientX-G.drag.x; G.dragDist+=Math.abs(dx); G.drag.x=e.clientX; if(G.dragDist>8){ G.touchMode=true; G.dragV+=dx; } });
+cv.addEventListener('pointerup',e=>{ if(G.drag && G.dragDist<=8) tap(e.clientX*DPR,e.clientY*DPR); G.drag=null; });
+cv.addEventListener('pointercancel',()=>G.drag=null);
+addEventListener('keydown',e=>{ if(e.key==='ArrowLeft')G.keyV=-MAXV; if(e.key==='ArrowRight')G.keyV=MAXV; });
+addEventListener('keyup',e=>{ if(e.key==='ArrowLeft'||e.key==='ArrowRight')G.keyV=0; });
+function tap(x,y){
+  if(!G.running||G.paused) return;
+  let best=null,bd=1e9; for(const h of lastHits){ const d=Math.hypot(h.x-x,h.y-y); if(d<h.r&&d<bd){bd=d;best=h;} }
+  G.mag={x,y,t:0};
+  if(!best){ return; }
+  const d=best.d;
+  if(G.found.has(d)){ toast(d.flaw?FLAWS[d.flaw].desc:'这里已经看过了'); return; }
+  G.found.add(d); G.checked++;
+  if(d.flaw){ sfxFlaw(); try{navigator.vibrate&&navigator.vibrate(40);}catch(e){} toast('❗ 发现破绽：'+FLAWS[d.flaw].desc,2600); }
+  else { sfxOk(); toast(d.k==='seal'?'款识「大清乾隆年製」，字写得没问题':d.k==='flower'?'这朵青花发色自然，没问题':'纹饰画得很流畅，没问题'); }
+}
+function update(dt){
+  G.t+=dt; if(G.mag) G.mag.t+=dt;
+  let v=0;
+  if(G.hasSensor && G.base!==null && !G.touchMode){ G.sm+=(G.gamma-G.sm)*Math.min(1,dt*12); const d=G.sm-G.base, a=Math.max(0,Math.abs(d)-3.5); v=Math.sign(d)*Math.min(MAXV,Math.pow(a,1.2)*6); }
+  v+=G.keyV; const dm=-G.dragV/innerWidth*140; G.dragV=0;
+  G.p+=v*dt+dm;
+}
+function render(){
+  render3D(ctx,W,H,G.p,G.item);
+  if(!G.running) return;
+  const top=H*.075, pad=H*.025, it=G.item;
+  ctx.fillStyle='#fff'; ctx.font=`800 ${H*.028}px -apple-system,"PingFang SC",sans-serif`; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText(`${it.cust}的${it.shape}`,pad,top+H*.01);
+  ctx.font=`500 ${H*.016}px -apple-system,sans-serif`; ctx.globalAlpha=.7; ctx.fillText(`第 ${G.idx+1} / ${ITEMS} 件 · 今日得分 ${G.score}`,pad,top+H*.042); ctx.globalAlpha=1;
+  const nf=[...G.found].filter(d=>d.flaw).length;
+  ctx.font=`700 ${H*.018}px -apple-system,sans-serif`; ctx.fillStyle=nf?'#ffb0a8':'#bcd'; ctx.fillText(nf?`已发现 ${nf} 处破绽`:'还没发现破绽',pad,top+H*.075);
+  // 转了多少（看过的角度）
+  const R=H*.045, cx=W-pad-R, cy=top+R*.6;
+  ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.lineWidth=H*.008; ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.stroke();
+  const seen=G.seen.filter(Boolean).length/36;
+  ctx.strokeStyle='#d9a441'; ctx.beginPath(); ctx.arc(cx,cy,R,-Math.PI/2,-Math.PI/2+seen*Math.PI*2); ctx.stroke();
+  ctx.fillStyle='#fff'; ctx.font=`700 ${H*.016}px sans-serif`; ctx.textAlign='center'; ctx.fillText(Math.round(seen*100)+'%',cx,cy); ctx.font=`500 ${H*.012}px sans-serif`; ctx.globalAlpha=.7; ctx.fillText('看过',cx,cy+R+H*.014); ctx.globalAlpha=1;
+  // 放大镜动画
+  if(G.mag && G.mag.t<.5){ const k=G.mag.t/.5; ctx.strokeStyle=`rgba(255,255,255,${1-k})`; ctx.lineWidth=H*.006; ctx.beginPath(); ctx.arc(G.mag.x,G.mag.y,H*.03+k*H*.03,0,7); ctx.stroke(); }
+  if(G.t<5){ ctx.font=`700 ${H*.019}px -apple-system,"PingFang SC",sans-serif`; const tip=G.touchMode?'拖动画面绕着看，可疑的地方点一下':'左右倾斜绕着看，可疑的地方点一下';
+    const tw=ctx.measureText(tip).width+H*.03; ctx.fillStyle='rgba(255,250,242,.9)'; ctx.beginPath(); const ty=H*.83; if(ctx.roundRect) ctx.roundRect(W/2-tw/2,ty-H*.022,tw,H*.044,H*.022); else ctx.rect(W/2-tw/2,ty-H*.022,tw,H*.044); ctx.fill(); ctx.fillStyle='#2f2a3a'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(tip,W/2,ty); }
+}
+function frame(now){ const dt=Math.min(.05,(now-(G.last||now))/1000); G.last=now;
+  if(G.running&&!G.paused){ update(dt); const b=Math.floor((((G.p%360)+360)%360)/10); G.seen[b]=1; }
+  else if(!G.running) G.p+=dt*12;
+  render(); requestAnimationFrame(frame); }
+
+/* ================= 流程 ================= */
+function show(id){ document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id===id)); $('#hud').classList.toggle('on',id===null); $('#verdict').classList.toggle('on',id===null); }
+function bestTxt(){ try{ const b=parseInt(localStorage.getItem('appraiser-best')||'0',10); return b?`最高得分 ${b}`:''; }catch(e){ return ''; } }
+$('#best').textContent=bestTxt();
+function newDay(){ G.idx=0; G.score=0; G.log=[];
+  const plan=[true,false,true,true,false,true]; // 4 假 2 真，第一件一定是假的（好上手）
+  const rest=plan.slice(1).sort(()=>Math.random()-.5); G.plan=[true,...rest]; openItem(); }
+function openItem(){ G.item=makeItem(G.idx,G.plan[G.idx]); vesselFaces=buildVessel(G.item);
+  $('#iNum').textContent=`第 ${G.idx+1} 位客人`; $('#iCust').innerHTML=`<b>${G.item.cust}</b> 拿来一只${G.item.shape}：<br>“${G.item.say}”`; show('pIntro'); }
+async function startItem(){ const ok=await enableSensor(); audioInit();
+  Object.assign(G,{running:true,paused:false,p:0,t:0,found:new Set(),checked:0,seen:new Array(36).fill(0),base:null,hasSensor:false,touchMode:!ok,last:0,dragV:0,mag:null});
+  show(null); $('#bCal').style.display=ok?'':'none';
+  if(ok) setTimeout(()=>{ if(G.running&&!G.hasSensor){ G.touchMode=true; $('#bCal').style.display='none'; } },1200); }
+function verdict(sayFake){
+  const it=G.item, right=sayFake===it.isFake, foundFlaws=[...G.found].filter(d=>d.flaw).map(d=>d.flaw);
+  let pts=0; const rows=[];
+  if(right){ pts+=100; rows.push(['判断正确','+100']); if(it.isFake){ pts+=foundFlaws.length*40; foundFlaws.forEach(k=>rows.push(['找到：'+FLAWS[k].name,'+40'])); if(!foundFlaws.length) rows.push(['没找到证据，全凭直觉','+0']); } else { const seen=G.seen.filter(Boolean).length; if(seen>=30){ pts+=50; rows.push(['仔细看了一整圈','+50']); } } }
+  else { pts-=50; rows.push(['看走眼了','-50']); }
+  G.score+=pts; G.log.push({it,right});
+  G.running=false; show('pResult');
+  $('#rIcon').textContent=right?(it.isFake?'🕵️':'🏺'):'😵';
+  $('#rTitle').textContent= right?(it.isFake?'火眼金睛！是赝品':'没错，是真品！'):(it.isFake?'看走眼了……这是赝品':'冤枉了一件真品');
+  const missed=it.flaws.filter(k=>!foundFlaws.includes(k)).map(k=>FLAWS[k].desc);
+  $('#rText').textContent= it.isFake ? (missed.length?`没发现的破绽：${missed.join('；')}。`:'所有破绽都被你找到了！')+(right?` ${it.cust}松了口气：“幸好没卖给别人！”`:'') : `${it.cust}笑开了花：“专家估价大约 ${it.value} 万！”`;
+  $('#rList').innerHTML=rows.map(([a,b])=>`<div><span>${a}</span><b>${b}</b></div>`).join('');
+  $('#rScore').textContent=(pts>=0?'+':'')+pts;
+  $('#bNext').textContent=G.idx>=ITEMS-1?'打烊':'下一位客人';
+  right?sfxRight():sfxWrongV();
+}
+$('#bReal').onclick=()=>verdict(false);
+$('#bFake').onclick=()=>verdict(true);
+$('#bNext').onclick=()=>{ if(G.idx>=ITEMS-1) endDay(); else { G.idx++; openItem(); } };
+function endDay(){ G.item=null; const right=G.log.filter(l=>l.right).length;
+  $('#eScore').textContent=G.score+' 分';
+  $('#eRank').textContent= G.score>=900?'国宝级鉴定大师': G.score>=700?'资深鉴宝师': G.score>=450?'鉴宝学徒':'还得多看几年';
+  $('#eList').innerHTML=G.log.map((l,i)=>`<div><span>${i+1}. ${l.it.cust}的${l.it.shape}（${l.it.isFake?'赝品':'真品'}）</span><b>${l.right?'✓':'✗'}</b></div>`).join('')+`<div><span>判断正确</span><b>${right} / ${ITEMS}</b></div>`;
+  try{ const b=parseInt(localStorage.getItem('appraiser-best')||'0',10); if(G.score>b){ localStorage.setItem('appraiser-best',String(G.score)); $('#eBest').textContent=b?`新纪录！之前最高 ${b}`:''; } else $('#eBest').textContent=`最高得分 ${b}`; }catch(e){}
+  show('pEnd'); }
+$('#bStart').onclick=newDay;
+$('#bGo').onclick=startItem;
+$('#bAgain').onclick=newDay;
+$('#bPause').onclick=()=>{ if(!G.running) return; G.paused=true; show('pPause'); $('#verdict').classList.remove('on'); };
+$('#bResume').onclick=()=>{ G.paused=false; G.last=0; show(null); };
+$('#bQuit').onclick=()=>{ G.running=false; G.paused=false; G.item=null; $('#best').textContent=bestTxt(); show('pStart'); };
+$('#bCal').onclick=()=>{ if(G.hasSensor){ G.base=G.gamma; G.sm=G.gamma; toast('已校准'); } };
+$('#bMute').onclick=()=>{ G.muted=!G.muted; $('#bMute').textContent='声音：'+(G.muted?'关':'开'); };
+G.seen=new Array(36).fill(0);
+// 首页展示一只转动的瓶子
+G.item=makeItem(0,false); vesselFaces=buildVessel(G.item);
+requestAnimationFrame(frame);
+if(/[?&]debug/.test(location.search)) window.__dbg={G,hits:()=>lastHits,DPR:()=>DPR};
+})();
+</script>
+</body>
+</html>
